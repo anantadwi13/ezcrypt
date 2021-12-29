@@ -2,6 +2,7 @@ package ezcrypt
 
 import (
 	"encoding/base64"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -137,5 +138,59 @@ func Test_base64Decode(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGenerateRandomBytes(t *testing.T) {
+	type args struct {
+		n int
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "success",
+			args: args{n: 32},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := generateRandomBytes(tt.args.n)
+			assert.Len(t, got, tt.args.n)
+		})
+	}
+}
+
+func TestGenerateRandomString(t *testing.T) {
+	type args struct {
+		n int
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "success",
+			args: args{n: 32},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := generateRandomString(tt.args.n)
+			assert.Len(t, got, tt.args.n)
+		})
+	}
+}
+
+func BenchmarkGenerateRandomBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		generateRandomBytes(32)
+	}
+}
+
+func BenchmarkGenerateRandomString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		generateRandomString(32)
 	}
 }

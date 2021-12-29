@@ -13,12 +13,20 @@ type AsymmetricEncryption interface {
 	KeyPair() KeyPair
 }
 
+type SymmetricEncryption interface {
+	Encrypt(message []byte) ([]byte, error)
+	Decrypt(cipher []byte) ([]byte, error)
+	Key() Key
+}
+
 type KeyPair interface {
 	Public() interface{}
 	Private() interface{}
 	EncodedPublic() ([]byte, error)
 	EncodedPrivate() ([]byte, error)
 }
+
+type Key []byte
 
 var (
 	randomReader  = rand.Reader
