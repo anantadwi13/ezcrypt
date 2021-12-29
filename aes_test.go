@@ -30,7 +30,7 @@ func TestAESGenerateRandomKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := AESGenerateRandomKey(tt.args.keySize)
+			got := AesGenerateRandomKey(tt.args.keySize)
 			assert.Len(t, got, int(tt.args.keySize))
 			encoded, err := got.Encode()
 			assert.NoError(t, err)
@@ -57,7 +57,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cbc 128",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    lipsum[:len(lipsum)/aes.BlockSize*aes.BlockSize],
 			},
@@ -67,7 +67,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cbc 192",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey192),
+				key:        AesGenerateRandomKey(AESKey192),
 				aesCreator: AesCBC,
 				message:    lipsum[:len(lipsum)/aes.BlockSize*aes.BlockSize],
 			},
@@ -77,7 +77,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cbc 256",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey256),
+				key:        AesGenerateRandomKey(AESKey256),
 				aesCreator: AesCBC,
 				message:    lipsum[:len(lipsum)/aes.BlockSize*aes.BlockSize],
 			},
@@ -87,7 +87,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cfb 128",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCFB,
 				message:    lipsum,
 			},
@@ -97,7 +97,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cfb 192",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey192),
+				key:        AesGenerateRandomKey(AESKey192),
 				aesCreator: AesCFB,
 				message:    lipsum,
 			},
@@ -107,7 +107,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "success cfb 256",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey256),
+				key:        AesGenerateRandomKey(AESKey256),
 				aesCreator: AesCFB,
 				message:    lipsum,
 			},
@@ -135,7 +135,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error cbc message block not a multiple of aes.BlockSize",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    lipsum[:len(lipsum)/aes.BlockSize*aes.BlockSize-1],
 			},
@@ -145,7 +145,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error encrypt invalid keySize",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -158,7 +158,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error encrypt read iv",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -171,7 +171,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error encrypt nil encryption mode",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -184,7 +184,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error encrypt base64 encoder",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -197,7 +197,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error decrypt invalid keySize",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -210,7 +210,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error decrypt invalid cipher",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -223,7 +223,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error decrypt invalid cipher",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -236,7 +236,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error decrypt nil decryption mode",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -249,7 +249,7 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 		{
 			name: "error decrypt base64 encoder",
 			args: &args{
-				key:        AESGenerateRandomKey(AESKey128),
+				key:        AesGenerateRandomKey(AESKey128),
 				aesCreator: AesCBC,
 				message:    []byte("exampleplaintext"),
 			},
@@ -372,9 +372,9 @@ func TestAESLoadEncodedKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AESLoadEncodedKey(tt.args.encodedKey)
+			got, err := AesLoadEncodedKey(tt.args.encodedKey)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AESLoadEncodedKey() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AesLoadEncodedKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {

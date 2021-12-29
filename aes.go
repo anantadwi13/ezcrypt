@@ -143,12 +143,12 @@ func AesCFB(key AESKey) (AES, error) {
 	}, nil
 }
 
-func AESGenerateRandomKey(keySize AESKeySize) AESKey {
+func AesGenerateRandomKey(keySize AESKeySize) AESKey {
 	return generateRandomBytes(int(keySize))
 }
 
-// AESLoadEncodedKey loads encoded base64 key into AESKey
-func AESLoadEncodedKey(encodedKey []byte) (AESKey, error) {
+// AesLoadEncodedKey loads encoded base64 key into AESKey
+func AesLoadEncodedKey(encodedKey []byte) (AESKey, error) {
 	decodedKey, err := base64Decode(getBase64Encoder(), encodedKey)
 	if err != nil {
 		return nil, err
