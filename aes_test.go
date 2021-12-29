@@ -85,6 +85,36 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 			wantErrDecrypt: false,
 		},
 		{
+			name: "success cbc + pkcs5 padding 128",
+			args: &args{
+				key:        AesGenerateRandomKey(AESKey128),
+				aesCreator: AesCBCWithPKCS5Padding,
+				message:    lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "success cbc + pkcs5 padding 192",
+			args: &args{
+				key:        AesGenerateRandomKey(AESKey192),
+				aesCreator: AesCBCWithPKCS5Padding,
+				message:    lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "success cbc + pkcs5 padding 256",
+			args: &args{
+				key:        AesGenerateRandomKey(AESKey256),
+				aesCreator: AesCBCWithPKCS5Padding,
+				message:    lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
 			name: "success cfb 128",
 			args: &args{
 				key:        AesGenerateRandomKey(AESKey128),
@@ -119,6 +149,15 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 			args: &args{
 				key:        nil,
 				aesCreator: AesCFB,
+				message:    lipsum,
+			},
+			wantErrCreator: true,
+		},
+		{
+			name: "error cbc + pkcs5 padding nil",
+			args: &args{
+				key:        nil,
+				aesCreator: AesCBCWithPKCS5Padding,
 				message:    lipsum,
 			},
 			wantErrCreator: true,

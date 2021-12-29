@@ -1,6 +1,7 @@
 package ezcrypt
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
@@ -30,6 +31,7 @@ type aesImpl struct {
 	key            AESKey
 	b64Encoder     *base64.Encoding
 	randReader     io.Reader
+	pkcs5Padding   bool
 	encryptionMode func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error
 	decryptionMode func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error
 }
@@ -40,8 +42,14 @@ func (a *aesImpl) Encrypt(message []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	cipherText := make([]byte, aes.BlockSize+len(message))
-	iv := cipherText[:aes.BlockSize]
+	if a.pkcs5Padding {
+		padding := block.BlockSize() - len(message)%block.BlockSize()
+		padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+		message = append(message, padtext...)
+	}
+
+	cipherText := make([]byte, block.BlockSize()+len(message))
+	iv := cipherText[:block.BlockSize()]
 	_, err = io.ReadFull(a.randReader, iv)
 	if err != nil {
 		return nil, err
@@ -73,10 +81,10 @@ func (a *aesImpl) Decrypt(encodedCipher []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(decodedCipher) < aes.BlockSize {
+	if len(decodedCipher) < block.BlockSize() {
 		return nil, errors.New("ciphertext block size is too short")
 	}
-	plainText := make([]byte, len(decodedCipher)-aes.BlockSize)
+	plainText := make([]byte, len(decodedCipher)-block.BlockSize())
 
 	if a.decryptionMode == nil {
 		return nil, errors.New("decryption mode is nil")
@@ -84,6 +92,11 @@ func (a *aesImpl) Decrypt(encodedCipher []byte) ([]byte, error) {
 	err = a.decryptionMode(plainText, block, decodedCipher)
 	if err != nil {
 		return nil, err
+	}
+
+	if a.pkcs5Padding {
+		padding := plainText[len(plainText)-1]
+		plainText = plainText[:len(plainText)-int(padding)]
 	}
 
 	return plainText, nil
@@ -102,24 +115,34 @@ func AesCBC(key AESKey) (AES, error) {
 		b64Encoder: getBase64Encoder(),
 		randReader: getRandomReader(),
 		encryptionMode: func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error {
-			if len(dstCipher)%aes.BlockSize != 0 {
+			if len(dstCipher)%blockCipher.BlockSize() != 0 {
 				return errors.New("ciphertext is not a multiple of the block size")
 			}
 
-			mode := cipher.NewCBCEncrypter(blockCipher, dstCipher[:aes.BlockSize])
-			mode.CryptBlocks(dstCipher[aes.BlockSize:], srcPlain)
+			mode := cipher.NewCBCEncrypter(blockCipher, dstCipher[:blockCipher.BlockSize()])
+			mode.CryptBlocks(dstCipher[blockCipher.BlockSize():], srcPlain)
 			return nil
 		},
 		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			if len(srcCipher)%aes.BlockSize != 0 {
+			if len(srcCipher)%blockCipher.BlockSize() != 0 {
 				return errors.New("ciphertext is not a multiple of the block size")
 			}
 
-			mode := cipher.NewCBCDecrypter(blockCipher, srcCipher[:aes.BlockSize])
-			mode.CryptBlocks(dstPlain, srcCipher[aes.BlockSize:])
+			mode := cipher.NewCBCDecrypter(blockCipher, srcCipher[:blockCipher.BlockSize()])
+			mode.CryptBlocks(dstPlain, srcCipher[blockCipher.BlockSize():])
 			return nil
 		},
 	}, nil
+}
+
+func AesCBCWithPKCS5Padding(key AESKey) (AES, error) {
+	cbc, err := AesCBC(key)
+	if err != nil {
+		return nil, err
+	}
+	cbcImpl, _ := cbc.(*aesImpl)
+	cbcImpl.pkcs5Padding = true
+	return cbcImpl, nil
 }
 
 func AesCFB(key AESKey) (AES, error) {
@@ -131,13 +154,13 @@ func AesCFB(key AESKey) (AES, error) {
 		b64Encoder: getBase64Encoder(),
 		randReader: getRandomReader(),
 		encryptionMode: func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error {
-			stream := cipher.NewCFBEncrypter(blockCipher, dstCipher[:aes.BlockSize])
-			stream.XORKeyStream(dstCipher[aes.BlockSize:], srcPlain)
+			stream := cipher.NewCFBEncrypter(blockCipher, dstCipher[:blockCipher.BlockSize()])
+			stream.XORKeyStream(dstCipher[blockCipher.BlockSize():], srcPlain)
 			return nil
 		},
 		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			stream := cipher.NewCFBDecrypter(blockCipher, srcCipher[:aes.BlockSize])
-			stream.XORKeyStream(dstPlain, srcCipher[aes.BlockSize:])
+			stream := cipher.NewCFBDecrypter(blockCipher, srcCipher[:blockCipher.BlockSize()])
+			stream.XORKeyStream(dstPlain, srcCipher[blockCipher.BlockSize():])
 			return nil
 		},
 	}, nil
