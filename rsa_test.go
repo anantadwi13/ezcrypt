@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -446,6 +447,14 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "error nil 2",
+			args: args{
+				publicKey:  nil,
+				privateKey: priv2048,
+			},
+			wantErr: true,
+		},
+		{
 			name: "error decode base64",
 			args: args{
 				publicKey:  pub2048,
@@ -501,6 +510,108 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 			encodedPrivKey, err := got.EncodedPrivate()
 			assert.NoError(t, err)
 			assert.Equal(t, tt.args.privateKey, encodedPrivKey)
+		})
+	}
+}
+
+func TestRsaKeyGenerate_Encode_Load(t *testing.T) {
+	type args struct {
+		keySize RSAKeySize
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "success rsa key 2048",
+			args: args{
+				keySize: RSAKey2048,
+			},
+		},
+		{
+			name: "success rsa key 4096",
+			args: args{
+				keySize: RSAKey4096,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			keyPair, err := RsaGenerateKeyPair(tt.args.keySize)
+			assert.NoError(t, err)
+
+			encPubKey, err := keyPair.EncodedPublic()
+			assert.NoError(t, err)
+			encPrivKey, err := keyPair.EncodedPrivate()
+			assert.NoError(t, err)
+
+			loadedKeyPair, err := RsaLoadEncodedKeyPair(encPrivKey, encPubKey)
+			assert.NoError(t, err)
+
+			assert.NotNil(t, loadedKeyPair)
+			assert.NotEmpty(t, loadedKeyPair.Private())
+			assert.NotEmpty(t, loadedKeyPair.Public())
+			assert.NotEmpty(t, loadedKeyPair.PrivateRsa())
+			assert.NotEmpty(t, loadedKeyPair.PublicRsa())
+
+			assert.True(t, keyPair.PublicRsa().Equal(loadedKeyPair.PublicRsa()))
+			assert.True(t, keyPair.PrivateRsa().Equal(loadedKeyPair.PrivateRsa()))
+		})
+	}
+}
+
+func Test_rsaKeyPair_EncodeKey(t *testing.T) {
+	type fields struct {
+		b64Encoder *base64.Encoding
+		rsaKey     RSAKeyPair
+	}
+	tests := []struct {
+		name        string
+		fields      fields
+		want        []byte
+		wantErrPub  bool
+		wantErrPriv bool
+	}{
+		{
+			name: "error encode",
+			fields: fields{
+				b64Encoder: getBase64Encoder(),
+				rsaKey: func() RSAKeyPair {
+					keyPair, err := RsaGenerateKeyPair(RSAKey2048)
+					assert.NoError(t, err)
+
+					keyPair.PublicRsa().N = nil
+					return keyPair
+				}(),
+			},
+			wantErrPub:  true,
+			wantErrPriv: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &rsaKeyPair{
+				b64Encoder: tt.fields.b64Encoder,
+				privKey:    tt.fields.rsaKey.PrivateRsa(),
+				pubKey:     tt.fields.rsaKey.PublicRsa(),
+			}
+			public, err := r.EncodedPublic()
+			if (err != nil) != tt.wantErrPub {
+				t.Errorf("EncodedPublic() error = %v, wantErr %v", err, tt.wantErrPub)
+				return
+			}
+			if !tt.wantErrPub {
+				assert.NotEmpty(t, public)
+			}
+
+			private, err := r.EncodedPrivate()
+			if (err != nil) != tt.wantErrPriv {
+				t.Errorf("EncodedPrivate() error = %v, wantErr %v", err, tt.wantErrPriv)
+				return
+			}
+			if !tt.wantErrPriv {
+				assert.NotEmpty(t, private)
+			}
 		})
 	}
 }
