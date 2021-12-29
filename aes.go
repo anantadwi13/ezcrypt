@@ -73,6 +73,9 @@ func (a *aesImpl) Decrypt(encodedCipher []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(decodedCipher) < aes.BlockSize {
+		return nil, errors.New("ciphertext block size is too short")
+	}
 	plainText := make([]byte, len(decodedCipher)-aes.BlockSize)
 
 	if a.decryptionMode == nil {
@@ -108,9 +111,6 @@ func AesCBC(key AESKey) (AES, error) {
 			return nil
 		},
 		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			if len(srcCipher) < aes.BlockSize {
-				return errors.New("ciphertext block size is too short")
-			}
 			if len(srcCipher)%aes.BlockSize != 0 {
 				return errors.New("ciphertext is not a multiple of the block size")
 			}
@@ -136,10 +136,6 @@ func AesCFB(key AESKey) (AES, error) {
 			return nil
 		},
 		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			if len(srcCipher) < aes.BlockSize {
-				return errors.New("ciphertext block size is too short")
-			}
-
 			stream := cipher.NewCFBDecrypter(blockCipher, srcCipher[:aes.BlockSize])
 			stream.XORKeyStream(dstPlain, srcCipher[aes.BlockSize:])
 			return nil
@@ -149,4 +145,13 @@ func AesCFB(key AESKey) (AES, error) {
 
 func AESGenerateRandomKey(keySize AESKeySize) AESKey {
 	return generateRandomBytes(int(keySize))
+}
+
+// AESLoadEncodedKey loads encoded base64 key into AESKey
+func AESLoadEncodedKey(encodedKey []byte) (AESKey, error) {
+	decodedKey, err := base64Decode(getBase64Encoder(), encodedKey)
+	if err != nil {
+		return nil, err
+	}
+	return decodedKey, nil
 }
