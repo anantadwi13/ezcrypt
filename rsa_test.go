@@ -285,10 +285,11 @@ func Test_rsaOAEP_Encrypt(t *testing.T) {
 
 func Test_rsaOAEP_DecryptWithPrivateKey(t *testing.T) {
 	type args struct {
-		pubKey  []byte
-		privKey []byte
-		cipher  []byte
-		plain   []byte
+		pubKey         []byte
+		privKey        []byte
+		cipher         []byte
+		plain          []byte
+		loadFromPubKey bool
 	}
 	tests := []struct {
 		name       string
@@ -362,11 +363,33 @@ func Test_rsaOAEP_DecryptWithPrivateKey(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:       "error decrypt using pubkey only",
+			rsaFactory: RsaOAEPWithSHA256,
+			args: args{
+				pubKey:         []byte("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxvDmplJ5hbjlBdPr+3iWtG3X/3/ZPiOYns4AECCf3xInnhAfnGrh9CJCiTtQAydjT95UEIP9SHUuYz1R9LQfgXv6wTfpwyaJ9otB71xJ6gGD0y24LD0sVj4T+QmpF3w/xI6fIZNYNKVjMb/vkSN9snnpTEHlFuI/upiVV765t7CkCgAafqbLTjJejsH0YtPPzPfVTQwVUu1wnv1behZuQ9gTu/ueZYdi9SbkZT8z2GPVvCZjx/WGx4ivumM9b3tstCEyOnTRKWYR4sZSR3wkW+HzocXRTzTvBNZ7RnhSGfp1XBbtLPI+h+PXNSUxCQMUKCwKjeJvnpdENgE8ZHW1yQIDAQAB"),
+				privKey:        []byte("MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDG8OamUnmFuOUF0+v7eJa0bdf/f9k+I5iezgAQIJ/fEieeEB+cauH0IkKJO1ADJ2NP3lQQg/1IdS5jPVH0tB+Be/rBN+nDJon2i0HvXEnqAYPTLbgsPSxWPhP5CakXfD/Ejp8hk1g0pWMxv++RI32yeelMQeUW4j+6mJVXvrm3sKQKABp+pstOMl6OwfRi08/M99VNDBVS7XCe/Vt6Fm5D2BO7+55lh2L1JuRlPzPYY9W8JmPH9YbHiK+6Yz1ve2y0ITI6dNEpZhHixlJHfCRb4fOhxdFPNO8E1ntGeFIZ+nVcFu0s8j6H49c1JTEJAxQoLAqN4m+el0Q2ATxkdbXJAgMBAAECggEAEmU8Lqz5p6/NHZjW/U3NQanWiz2bLO/FsQmDX/pkThAzsZ30DlajxhtU47OkVmZR/JSmWVCbHxQW0f5dka8GKsb4DN3Ks8zgfPerhSKXgxfYxLI5kX2ml+Ltnd2S0SUgEGDPvh8NzPBuF6+Ty2vot5QmSnLdaBxLoElzpcVxDtcQ0X0Z7IdYyyUqvIGlHBWKvlgPRTNRwLLaLULNFWy40MyvlGiEm5uGZZ3mlM2V22MD1JEF7nhoewSH4MLvpoB/aiZuWGQCgTqGQTy9T9z7VQIl2t3N6xqAxnulBAO+D14nwzocDC3AMVoVv8TPcYKVJFJ0L1Y+XNxoQhzptLfmwQKBgQDaEBoUV5jv0TqIX3zyhyHDIQs6zLOfQFr2E2eSjRftTGw64hNUXWFwnKhcLWXx21hZTndAzKZVU/1fz6v5/Qfopl7By7l3tGnC+7JGUzJl3RVxjwgqofEISLuyFRqr2cvujuLuWuxfZBNQ8vHc+G8dDYFuZwh+qlNVa8yo5wNk3QKBgQDpjSpQxYAy6bTXon7l52lwX22iOJcG4o6jxVV5f0B6pmr8dYft7yJQP6Rf4y8nlkUj5vk2RDViT1clHHH3LYCddRhtcNQ8VzPBJB8Xa1Hjlg4egMJZaoBmcI3hXvUiUT1DqMtCpwbeq76mn7ShBSvDcYmjV5VDymk6uRbYBpZ/3QKBgQCGlkOSZJJXCbrnqo/SnIbBCWcF7ou6cZzynf1h3UV0R6PRH/GwM0ZNm9LpuXdfM/Mug5hk3SqYJZOPi/xn+bzk4bJASD37XNWd630XnIfRiQeQJCh1L6g1Zba67f2dLXqJjZUQafvT0E9/ucJ/kLH7q3dELcF3dCak5TjW0mYs3QKBgFHPlkwW8vJitWt3y3XjWyb29qOFqTnLMOYjYO6facnM89sdnJD3XJC5ym2gWktGs0+BQDkHKaAXZNJmJXHNaak+dGEZze6ZKVL1wUJl4JiVXrrGpc3GpdW8haa1qa7swEYsIY9mjNyBUtZxSUfCVPMwmWMzceD+TWA5p8vieuOtAoGAO5AW9XEWL22nm7Juro0RfFa7T3S8vvef4cFtrkT6mxbInAFfk8Ld++vozlU2vQuniYzRb9/mwdPsVE4dhXIMWzuLcg1aPV85gsIdE2VAqX1eAkZ1Sk/Jx0vsO/ooWaGzBM75+O1DLwq5LqtgoVAF5ZZaew7SUGXYI/7U55Kg1xs="),
+				cipher:         []byte("iqzLFa6rOPRj4LJRqT7ZStD0hBiWrBB8nzo7IegiB8dceT7phmu1+xfHeRWD0rSKfXfc2O1oGBOjZOA593fsn7+q+xud5l08PJQOyuto/Qq8cg7kHyuq4aivNAu/P9gjsvPlghkeDRMAF7IMtBnBBHuR9wVvsWucVN/iuZTggLZ6gPhxw5fufuf29LslCLkIC+PSXZD71KdQAWDxrls/MHJwdEF1H6KVZeNbBQJwaKuESYibDg6ohlo9oejX1OW5bahfoX7RkOQW64q3JvYY/WPnyH4AAETkwoWaUxgH4/vBvl7qMlEZqQKcXZWPmcS3M14uzQ8+Lgp2ClkEfDR5wQ=="),
+				plain:          []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut gravida vitae metus a lobortis. Ut nulla diam, tristique vel diam non, porta congue purus. Nunc at ornare orci. Ut pharetra, eros "),
+				loadFromPubKey: true,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			keyPair, err := RsaLoadEncodedKeyPair(tt.args.privKey, tt.args.pubKey)
-			assert.NoError(t, err)
+			var (
+				keyPair RSAKeyPair
+				err     error
+			)
+			if tt.args.loadFromPubKey {
+				keyPair, err = RsaLoadEncodedPublicKey(tt.args.pubKey)
+				assert.NoError(t, err)
+			} else {
+				keyPair, err = RsaLoadEncodedKeyPair(tt.args.privKey)
+				assert.NoError(t, err)
+			}
+
 			rsaInstance, err := tt.rsaFactory(keyPair)
 			assert.NoError(t, err)
 
@@ -392,16 +415,12 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 		priv4096 = []byte("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")
 	)
 
-	edPub, edPriv, err := ed25519.GenerateKey(getRandomReader())
+	_, edPriv, err := ed25519.GenerateKey(getRandomReader())
 	assert.NoError(t, err)
 
-	pub, err := x509.MarshalPKIXPublicKey(edPub)
-	assert.NoError(t, err)
 	priv, err := x509.MarshalPKCS8PrivateKey(edPriv)
 	assert.NoError(t, err)
 
-	encodedEdPub, err := base64Encode(getBase64Encoder(), pub)
-	assert.NoError(t, err)
 	encodedEdPriv, err := base64Encode(getBase64Encoder(), priv)
 	assert.NoError(t, err)
 
@@ -447,34 +466,10 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error nil 2",
-			args: args{
-				publicKey:  nil,
-				privateKey: priv2048,
-			},
-			wantErr: true,
-		},
-		{
 			name: "error decode base64",
 			args: args{
 				publicKey:  pub2048,
 				privateKey: append(priv2048, []byte("!@#")...),
-			},
-			wantErr: true,
-		},
-		{
-			name: "error decode base64 2",
-			args: args{
-				publicKey:  append(pub2048, []byte("!@#")...),
-				privateKey: priv2048,
-			},
-			wantErr: true,
-		},
-		{
-			name: "error invalid rsa pub",
-			args: args{
-				publicKey:  encodedEdPub,
-				privateKey: priv2048,
 			},
 			wantErr: true,
 		},
@@ -489,7 +484,7 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RsaLoadEncodedKeyPair(tt.args.privateKey, tt.args.publicKey)
+			got, err := RsaLoadEncodedKeyPair(tt.args.privateKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RsaLoadEncodedKeyPair() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -510,6 +505,99 @@ func TestRsaLoadEncodedKeyPair(t *testing.T) {
 			encodedPrivKey, err := got.EncodedPrivate()
 			assert.NoError(t, err)
 			assert.Equal(t, tt.args.privateKey, encodedPrivKey)
+		})
+	}
+}
+
+func TestRsaLoadEncodedPublicKey(t *testing.T) {
+	var (
+		pub2048 = []byte("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsb0ZWpIwQlxfUKuqLApIuVhcEuimDi2htczc41IbtSKJgzEyxr2qgwdwYOjf7kIUqgBx4hugLVtW0tudh504bdXWYVK0gKkhPW6N+eyk8XvB8fmdYirP9sepVj87w3n1/UN3+5st446o0hDbMoMlN/1/rA/pfbyz714LafhSKVRvUpBzF3FzFtQ0n69KdpWm2Ou72ibbALtHzp31+EtcNhcEhsW9XQmcz2gsQdKxbjgsKDDXtK+IEcCWDqV2CCE7wAPJgdX1oFQtkA0uyq/hoPDpSrQFL7mcJGKSWazUhUj3uWtdCXNhO/E+596vPzwZJMMKJJlQkSah3yqcr6C20QIDAQAB")
+		pub4096 = []byte("MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA10vtoa5ZHF1Pl/VFMl8F8AZp2WJ9gGRGgLlyiLzUm2v2fqB/mkJVEP79uZQfyzfILmONy6knBgOdg1sMcH1HZDhfSUGe4AI0TqnCuvCEkXON5qup76hyr90lSpgPU9FnuYtxjpMbvkKd6QBc5szeLUQlzyBEs7BuM1PHBaOMmMyN9tp7NqNkLDzqsWSLn4rSVHyd1wPYaptN4nj6e1aKGGyVtSFIdvPbuqcmNS+41+QM0u6lZ9aCHhNGoS/q7RbFNRdKO0gLcwxcxRdJsoWmjIrfYHD4aSPzjRzlD/Otq8SpHp+n5677qOxi8o5MEhVeUkHkNGohBf9qyI4JYMFYsOD4oX1DYRnP095H1stDkfYMzx61gyjLcsf3dQi2D9oloemtTuSARndtZI/9N0u+1RvOhGtLwLN+Sn/UQ8mKKZlBRWDiFg0xhcvp0vys76jvCDJoF2Vi05FFZd8QNmfX/4X7cK80VoxHBfnvrjnB/yf4LEQGhrOY0COsQNu0VZMcIBuJ7RYPZ/cSTafTaTVE1Smjfe9mtBA4B+UqewKJBA9SstVbMm7Le/h0QUKG0hirkAjM0o9uLIz3LPk25MUZ5ZyoB0ps5nZCvsprffGZy8V+XVqpfl+g5hTlZDtaNVdcdBASJjXN8tpz166v81t73sL1HrIM54CbND5FPl4hAsECAwEAAQ==")
+	)
+
+	edPub, _, err := ed25519.GenerateKey(getRandomReader())
+	assert.NoError(t, err)
+
+	pub, err := x509.MarshalPKIXPublicKey(edPub)
+	assert.NoError(t, err)
+
+	encodedEdPub, err := base64Encode(getBase64Encoder(), pub)
+	assert.NoError(t, err)
+
+	type args struct {
+		publicKey []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "success rsa key 2048",
+			args: args{
+				publicKey: pub2048,
+			},
+			wantErr: false,
+		},
+		{
+			name: "success rsa key 4096",
+			args: args{
+				publicKey: pub4096,
+			},
+			wantErr: false,
+		},
+		{
+			name: "error empty",
+			args: args{
+				publicKey: []byte{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error nil 2",
+			args: args{
+				publicKey: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "error decode base64",
+			args: args{
+				publicKey: append(pub2048, []byte("!@#")...),
+			},
+			wantErr: true,
+		},
+		{
+			name: "error invalid rsa pub",
+			args: args{
+				publicKey: encodedEdPub,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RsaLoadEncodedPublicKey(tt.args.publicKey)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RsaLoadEncodedPublicKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			assert.NotNil(t, got)
+			assert.Empty(t, got.Private())
+			assert.NotEmpty(t, got.Public())
+			assert.Empty(t, got.PrivateRsa())
+			assert.NotEmpty(t, got.PublicRsa())
+
+			encodedPubKey, err := got.EncodedPublic()
+			assert.NoError(t, err)
+			assert.Equal(t, tt.args.publicKey, encodedPubKey)
+
+			encodedPrivKey, err := got.EncodedPrivate()
+			assert.Error(t, err)
+			assert.Empty(t, encodedPrivKey)
 		})
 	}
 }
@@ -540,12 +628,12 @@ func TestRsaKeyGenerate_Encode_Load(t *testing.T) {
 			keyPair, err := RsaGenerateKeyPair(tt.args.keySize)
 			assert.NoError(t, err)
 
-			encPubKey, err := keyPair.EncodedPublic()
+			_, err = keyPair.EncodedPublic()
 			assert.NoError(t, err)
 			encPrivKey, err := keyPair.EncodedPrivate()
 			assert.NoError(t, err)
 
-			loadedKeyPair, err := RsaLoadEncodedKeyPair(encPrivKey, encPubKey)
+			loadedKeyPair, err := RsaLoadEncodedKeyPair(encPrivKey)
 			assert.NoError(t, err)
 
 			assert.NotNil(t, loadedKeyPair)

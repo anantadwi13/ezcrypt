@@ -44,6 +44,9 @@ func (e *rsaOAEP) EncryptWithPublicKey(message []byte) ([]byte, error) {
 }
 
 func (e *rsaOAEP) DecryptWithPrivateKey(cipher []byte) ([]byte, error) {
+	if e.rsaKeyPair.PrivateRsa() == nil {
+		return nil, errors.New("private key is nil")
+	}
 	cipherBytes, err := base64Decode(e.b64Encoder, cipher)
 	if err != nil {
 		return nil, err
@@ -102,6 +105,9 @@ func (r *rsaKeyPair) Public() interface{} {
 }
 
 func (r *rsaKeyPair) Private() interface{} {
+	if r.privKey == nil {
+		return nil
+	}
 	return r.privKey
 }
 
@@ -114,6 +120,9 @@ func (r *rsaKeyPair) EncodedPublic() ([]byte, error) {
 }
 
 func (r *rsaKeyPair) EncodedPrivate() ([]byte, error) {
+	if r.privKey == nil {
+		return nil, errors.New("private key is nil")
+	}
 	bytes, err := x509.MarshalPKCS8PrivateKey(r.privKey)
 	if err != nil {
 		return nil, err
@@ -133,13 +142,10 @@ func RsaGenerateKeyPair(bits RSAKeySize) (RSAKeyPair, error) {
 	}, nil
 }
 
-// RsaLoadEncodedKeyPair loads base64 encoded privateKey & publicKey into RSAKeyPair
-func RsaLoadEncodedKeyPair(privateKey []byte, publicKey []byte) (RSAKeyPair, error) {
+// RsaLoadEncodedKeyPair loads base64 encoded privateKey into RSAKeyPair.
+// It will create RSAKeyPair instance with private and public keys loaded.
+func RsaLoadEncodedKeyPair(privateKey []byte) (RSAKeyPair, error) {
 	decodedPrivKey, err := base64Decode(getBase64Encoder(), privateKey)
-	if err != nil {
-		return nil, err
-	}
-	decodedPubKey, err := base64Decode(getBase64Encoder(), publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -148,15 +154,34 @@ func RsaLoadEncodedKeyPair(privateKey []byte, publicKey []byte) (RSAKeyPair, err
 	if err != nil {
 		return nil, err
 	}
-	pubKey, err := x509.ParsePKIXPublicKey(decodedPubKey)
-	if err != nil {
-		return nil, err
-	}
 
 	rsaPrivKey, ok := privKey.(*rsa.PrivateKey)
 	if !ok {
 		return nil, errors.New("private key type is not rsa")
 	}
+
+	return &rsaKeyPair{
+		b64Encoder: getBase64Encoder(),
+		privKey:    rsaPrivKey,
+		pubKey:     &rsaPrivKey.PublicKey,
+	}, nil
+}
+
+// RsaLoadEncodedPublicKey loads base64 encoded publicKey only into RSAKeyPair.
+// It will create RSAKeyPair instance without a private key.
+//
+// **NOTE** This RSAKeyPair is used for encryption only.
+func RsaLoadEncodedPublicKey(publicKey []byte) (RSAKeyPair, error) {
+	decodedPubKey, err := base64Decode(getBase64Encoder(), publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := x509.ParsePKIXPublicKey(decodedPubKey)
+	if err != nil {
+		return nil, err
+	}
+
 	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
 	if !ok {
 		return nil, errors.New("public key type is not rsa")
@@ -164,7 +189,6 @@ func RsaLoadEncodedKeyPair(privateKey []byte, publicKey []byte) (RSAKeyPair, err
 
 	return &rsaKeyPair{
 		b64Encoder: getBase64Encoder(),
-		privKey:    rsaPrivKey,
 		pubKey:     rsaPubKey,
 	}, nil
 }
