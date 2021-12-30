@@ -217,6 +217,17 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 			wantErrCreator: true,
 		},
 		{
+			name: "error gcm nil",
+			args: &args{
+				key: nil,
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			wantErrCreator: true,
+		},
+		{
 			name: "error cbc message block not a multiple of aes.BlockSize",
 			args: &args{
 				key:        AesGenerateRandomKey(AESKey128),
