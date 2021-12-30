@@ -27,13 +27,23 @@ func (a AESKey) Encode() ([]byte, error) {
 	return base64Encode(getBase64Encoder(), a)
 }
 
+type cipherParams struct {
+	block          cipher.Block
+	src            []byte
+	iv             []byte // initialization vector or nonce
+	additionalData []byte
+}
+type cipherFunc func(params *cipherParams) (dst []byte, err error)
+
 type aesImpl struct {
 	key            AESKey
 	b64Encoder     *base64.Encoding
 	randReader     io.Reader
+	ivSize         int    // initialization vector or nonce size
+	additionalData []byte // optionally used in GCM mode
 	pkcs5Padding   bool
-	encryptionMode func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error
-	decryptionMode func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error
+	encryptionMode cipherFunc
+	decryptionMode cipherFunc
 }
 
 func (a *aesImpl) Encrypt(message []byte) ([]byte, error) {
@@ -48,9 +58,18 @@ func (a *aesImpl) Encrypt(message []byte) ([]byte, error) {
 		message = append(message, padtext...)
 	}
 
-	cipherText := make([]byte, block.BlockSize()+len(message))
-	iv := cipherText[:block.BlockSize()]
-	_, err = io.ReadFull(a.randReader, iv)
+	if a.ivSize <= 0 {
+		a.ivSize = 0
+	}
+
+	params := &cipherParams{
+		block:          block,
+		src:            message,
+		iv:             make([]byte, a.ivSize),
+		additionalData: a.additionalData,
+	}
+
+	_, err = io.ReadFull(a.randReader, params.iv)
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +77,12 @@ func (a *aesImpl) Encrypt(message []byte) ([]byte, error) {
 	if a.encryptionMode == nil {
 		return nil, errors.New("encryption mode is nil")
 	}
-	err = a.encryptionMode(cipherText, block, message)
+	dst, err := a.encryptionMode(params)
 	if err != nil {
 		return nil, err
 	}
 
-	encodedCipher, err := base64Encode(a.b64Encoder, cipherText)
+	encodedCipher, err := base64Encode(a.b64Encoder, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -81,25 +100,35 @@ func (a *aesImpl) Decrypt(encodedCipher []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	if a.ivSize <= 0 {
+		a.ivSize = 0
+	}
+
 	if len(decodedCipher) < block.BlockSize() {
 		return nil, errors.New("ciphertext block size is too short")
 	}
-	plainText := make([]byte, len(decodedCipher)-block.BlockSize())
+
+	params := &cipherParams{
+		block:          block,
+		src:            decodedCipher,
+		iv:             decodedCipher[:a.ivSize],
+		additionalData: a.additionalData,
+	}
 
 	if a.decryptionMode == nil {
 		return nil, errors.New("decryption mode is nil")
 	}
-	err = a.decryptionMode(plainText, block, decodedCipher)
+	dst, err := a.decryptionMode(params)
 	if err != nil {
 		return nil, err
 	}
 
 	if a.pkcs5Padding {
-		padding := plainText[len(plainText)-1]
-		plainText = plainText[:len(plainText)-int(padding)]
+		padding := dst[len(dst)-1]
+		dst = dst[:len(dst)-int(padding)]
 	}
 
-	return plainText, nil
+	return dst, nil
 }
 
 func (a *aesImpl) Key() Key {
@@ -112,25 +141,36 @@ func AesCBC(key AESKey) (AES, error) {
 	}
 	return &aesImpl{
 		key:        key,
+		ivSize:     aes.BlockSize,
 		b64Encoder: getBase64Encoder(),
 		randReader: getRandomReader(),
-		encryptionMode: func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error {
-			if len(dstCipher)%blockCipher.BlockSize() != 0 {
-				return errors.New("ciphertext is not a multiple of the block size")
+		encryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			if len(params.src)%params.block.BlockSize() != 0 {
+				return nil, errors.New("plaintext is not a multiple of the block size")
 			}
 
-			mode := cipher.NewCBCEncrypter(blockCipher, dstCipher[:blockCipher.BlockSize()])
-			mode.CryptBlocks(dstCipher[blockCipher.BlockSize():], srcPlain)
-			return nil
+			dst = make([]byte, len(params.iv)+len(params.src))
+
+			mode := cipher.NewCBCEncrypter(params.block, params.iv)
+			mode.CryptBlocks(dst[len(params.iv):], params.src)
+
+			for i, b := range params.iv {
+				dst[i] = b
+			}
+
+			return dst, nil
 		},
-		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			if len(srcCipher)%blockCipher.BlockSize() != 0 {
-				return errors.New("ciphertext is not a multiple of the block size")
+		decryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			if len(params.src)%params.block.BlockSize() != 0 {
+				return nil, errors.New("ciphertext is not a multiple of the block size")
 			}
 
-			mode := cipher.NewCBCDecrypter(blockCipher, srcCipher[:blockCipher.BlockSize()])
-			mode.CryptBlocks(dstPlain, srcCipher[blockCipher.BlockSize():])
-			return nil
+			dst = make([]byte, len(params.src)-len(params.iv))
+
+			mode := cipher.NewCBCDecrypter(params.block, params.iv)
+			mode.CryptBlocks(dst, params.src[len(params.iv):])
+
+			return dst, nil
 		},
 	}, nil
 }
@@ -151,17 +191,72 @@ func AesCFB(key AESKey) (AES, error) {
 	}
 	return &aesImpl{
 		key:        key,
+		ivSize:     aes.BlockSize,
 		b64Encoder: getBase64Encoder(),
 		randReader: getRandomReader(),
-		encryptionMode: func(dstCipher []byte, blockCipher cipher.Block, srcPlain []byte) error {
-			stream := cipher.NewCFBEncrypter(blockCipher, dstCipher[:blockCipher.BlockSize()])
-			stream.XORKeyStream(dstCipher[blockCipher.BlockSize():], srcPlain)
-			return nil
+		encryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			dst = make([]byte, len(params.iv)+len(params.src))
+
+			stream := cipher.NewCFBEncrypter(params.block, params.iv)
+			stream.XORKeyStream(dst[len(params.iv):], params.src)
+
+			for i, b := range params.iv {
+				dst[i] = b
+			}
+
+			return dst, nil
 		},
-		decryptionMode: func(dstPlain []byte, blockCipher cipher.Block, srcCipher []byte) error {
-			stream := cipher.NewCFBDecrypter(blockCipher, srcCipher[:blockCipher.BlockSize()])
-			stream.XORKeyStream(dstPlain, srcCipher[blockCipher.BlockSize():])
-			return nil
+		decryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			dst = make([]byte, len(params.src)-len(params.iv))
+
+			stream := cipher.NewCFBDecrypter(params.block, params.iv)
+			stream.XORKeyStream(dst, params.src[len(params.iv):])
+
+			return dst, nil
+		},
+	}, nil
+}
+
+// AesGCM return AES with Galois Counter Mode instance. It is using 12 bytes nonce and 16 bytes tag.
+// additionalData is an optional parameter (used for authentication purpose). It can be nil or any size slice.
+//
+// AesGCM.Encrypt will return bytes of base64encode(Nonce+CipherText+Tag).
+// AesGCM.Decrypt requires bytes of base64encode(Nonce+CipherText+Tag) parameter.
+func AesGCM(key AESKey, additionalData []byte) (AES, error) {
+	if key == nil || len(key) <= 0 {
+		return nil, errors.New("aes key is nil")
+	}
+	return &aesImpl{
+		key:            key,
+		ivSize:         12,
+		additionalData: additionalData,
+		b64Encoder:     getBase64Encoder(),
+		randReader:     getRandomReader(),
+		encryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			ivSize := len(params.iv)
+			dst = make([]byte, ivSize+len(params.src)+16)
+
+			aesgcm, err := cipher.NewGCMWithNonceSize(params.block, ivSize)
+			if err != nil {
+				return nil, err
+			}
+			aesgcm.Seal(dst[ivSize:ivSize], params.iv, params.src, params.additionalData)
+
+			copy(dst, params.iv)
+
+			return dst, nil
+		},
+		decryptionMode: func(params *cipherParams) (dst []byte, err error) {
+			aesgcm, err := cipher.NewGCMWithNonceSize(params.block, len(params.iv))
+			if err != nil {
+				return nil, err
+			}
+			dst, err = aesgcm.Open(nil, params.iv, params.src[len(params.iv):], params.additionalData)
+			if err != nil {
+				return nil, err
+			}
+
+			return dst, nil
 		},
 	}, nil
 }

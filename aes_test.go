@@ -154,6 +154,51 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 			wantErrCreator: true,
 		},
 		{
+			name: "success gcm 128",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey128),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "success gcm 192",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey192),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "success gcm 256",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey256),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "error cfb nil",
+			args: &args{
+				key:        nil,
+				aesCreator: AesCFB,
+				message:    lipsum,
+			},
+			wantErrCreator: true,
+		},
+		{
 			name: "error cbc + pkcs5 padding nil",
 			args: &args{
 				key:        nil,
@@ -168,6 +213,17 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 				key:        nil,
 				aesCreator: AesCBC,
 				message:    lipsum,
+			},
+			wantErrCreator: true,
+		},
+		{
+			name: "error gcm nil",
+			args: &args{
+				key: nil,
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
 			},
 			wantErrCreator: true,
 		},
@@ -296,6 +352,54 @@ func TestGenerate_Encrypt_Decrypt(t *testing.T) {
 				aesInstance.b64Encoder = nil
 				return nil
 			},
+			wantErrDecrypt: true,
+		},
+		{
+			name: "error gcm invalid nonce size encryption",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey128),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			encryptModifier: func(aesInstance *aesImpl, args *args) error {
+				aesInstance.ivSize = 0
+				return nil
+			},
+			wantErrEncrypt: true,
+			wantErrDecrypt: false,
+		},
+		{
+			name: "error gcm invalid nonce size decrypt",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey128),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			decryptModifier: func(aesInstance *aesImpl, args *args, cipher *[]byte) error {
+				aesInstance.ivSize = 0
+				return nil
+			},
+			wantErrEncrypt: false,
+			wantErrDecrypt: true,
+		},
+		{
+			name: "error gcm authentication failed",
+			args: &args{
+				key: AesGenerateRandomKey(AESKey128),
+				aesCreator: func(key AESKey) (AES, error) {
+					return AesGCM(key, nil)
+				},
+				message: lipsum,
+			},
+			decryptModifier: func(aesInstance *aesImpl, args *args, cipher *[]byte) error {
+				aesInstance.additionalData = []byte("change")
+				return nil
+			},
+			wantErrEncrypt: false,
 			wantErrDecrypt: true,
 		},
 	}
